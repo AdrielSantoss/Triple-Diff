@@ -18,15 +18,16 @@ fn main() {
 }
 
 
-fn get_unique_lines(content_lines: Vec<&str>) -> Vec<&str> {
-    let mut unique_lines = Vec::new();
-    let mut seen = HashSet::new();
+fn get_unique_lines<'a>(content_lines: &'a [&'a str]) -> Vec<&'a str> {
+    let mut freq: HashMap<&'a str, usize> = HashMap::new();
 
-    for item in content_lines {
-        if seen.insert(item) {
-            unique_lines.push(item);
-        }
+    for &line in content_lines.iter() {
+        *freq.entry(line).or_insert(0) += 1;
     }
 
-    return unique_lines;
+    return content_lines
+        .iter()
+        .filter(|&&line| freq.get(line) == Some(&1))
+        .map(|&line| line)
+        .collect()
 }
