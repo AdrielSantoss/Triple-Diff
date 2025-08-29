@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs};
+use std::{collections::{HashSet}, fs};
 
 fn main() {
     let file_a = "src/fileA.txt";
@@ -13,17 +13,20 @@ fn main() {
     let content_lines_a: Vec<&str> = content_a.split("\n").collect();
     let content_lines_b: Vec<&str> = content_b.split("\n").collect();
 
-    let mut content_dictionary_a: HashMap<String, usize> = HashMap::new();
-    let mut content_dictionary_b: HashMap<String, usize> = HashMap::new();
+    let mut unique_lines_a: Vec<&str> = get_unique_lines(content_lines_a);
+    let mut unique_lines_b: Vec<&str> = get_unique_lines(content_lines_b);
+}
 
-    for i in 0..content_lines_a.len() {
-        if content_dictionary_a.contains_key(content_lines_a[i]) {
-            let value = content_dictionary_a.get(content_lines_a[i]).unwrap();
-            content_dictionary_a.insert(content_lines_a[i].to_string(), value + 1);
 
-            continue;
+fn get_unique_lines(content_lines: Vec<&str>) -> Vec<&str> {
+    let mut unique_lines = Vec::new();
+    let mut seen = HashSet::new();
+
+    for item in content_lines {
+        if seen.insert(item) {
+            unique_lines.push(item);
         }
-
-        content_dictionary_a.insert(content_lines_a[i].to_string(), 1);
     }
+
+    return unique_lines;
 }
