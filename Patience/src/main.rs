@@ -1,4 +1,5 @@
-use std::{collections::HashMap, fs};
+use std::{collections::HashMap, fs::{self, File}};
+use std::io::Write;
 
 fn main() {
     let file_a = "src/fileA.txt";
@@ -28,10 +29,10 @@ fn main() {
         }
     }
 
-    let lis_idx = lis_indices(&positions_b);
+    let lis_idx = get_lis_indices(&positions_b);
 
     let anchors_final: Vec<&str> = lis_idx.iter().map(|&i| anchors[i]).collect();
-    let mut anchors_indexed: Vec<(&str, usize, usize)> = vec![];
+    let mut anchors_indexed: Vec<(&str, usize, usize)> = Vec::new();
 
     for &line in &anchors_final {
         if let (Some(&idx_a), Some(&idx_b)) = (unique_lines_a.get(line), unique_lines_b.get(line)) {
@@ -41,10 +42,32 @@ fn main() {
 
     let mut last_a = 0;
     let mut last_b = 0;
+    let mut diff: Vec<String> = Vec::new();
 
     for (line, idx_a, idx_b) in &anchors_indexed {
-        let sub_a = &content_a[last_a..*idx_a];
-        let sub_b = &content_b[last_b..*idx_b];
+        let sub_a = &content_lines_a[last_a..*idx_a];
+        let sub_b = &content_lines_b[last_b..*idx_b];
+
+        if sub_a.is_empty() && sub_b.is_empty() {
+            continue;
+        }
+
+        if !sub_a.is_empty() && sub_b.is_empty() {
+            for removed_line in sub_a {
+                diff.push(format!("-{}", removed_line))
+            }
+        }
+
+        if sub_a.is_empty() && !sub_b.is_empty() {
+            for new_line in sub_b {
+                diff.push(format!("+{}", new_line))
+            }
+        }
+
+        if !sub_a.is_empty() && !sub_b.is_empty() {
+            // aplicar diff recursivo?
+        }
+
         println!("Sub-bloco: A={:?}, B={:?}", sub_a, sub_b);
 
         println!("Âncora: {}", line);
@@ -53,10 +76,21 @@ fn main() {
         last_b = idx_b + 1;
     }
 
+    if !diff.is_empty() {
+        let mut patch_file = File::create("patch.txt")
+            .expect("Ocorreu um erro ao gerar o arquivo patch.");
+
+        for line in &diff {
+            writeln!(patch_file, "{}", line)
+                .expect(&format!("Ocorreu um erro ao registrar a linha: {}", line));
+        }
+    }
+
     println!("Anchors (candidatas): {:?}", anchors);
     println!("Positions in B: {:?}", positions_b);
     println!("LIS indices: {:?}", lis_idx);
     println!("Anchors final: {:?}", anchors_final);
+    println!("Diffs: {:?}", diff);
 }
 
 fn get_unique_lines<'a>(content_lines: &'a [&'a str]) -> HashMap<&'a str, usize> {
@@ -74,10 +108,10 @@ fn get_unique_lines<'a>(content_lines: &'a [&'a str]) -> HashMap<&'a str, usize>
         }
     }
 
-    result
+    return result;
 }
 
-fn lis_indices(seq: &[usize]) -> Vec<usize> {
+fn get_lis_indices(seq: &[usize]) -> Vec<usize> {
     let n = seq.len();
     if n == 0 {
         return Vec::new();
