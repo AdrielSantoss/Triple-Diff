@@ -31,6 +31,27 @@ fn main() {
     let lis_idx = lis_indices(&positions_b);
 
     let anchors_final: Vec<&str> = lis_idx.iter().map(|&i| anchors[i]).collect();
+    let mut anchors_indexed: Vec<(&str, usize, usize)> = vec![];
+
+    for &line in &anchors_final {
+        if let (Some(&idx_a), Some(&idx_b)) = (unique_lines_a.get(line), unique_lines_b.get(line)) {
+            anchors_indexed.push((line, idx_a, idx_b));
+        }
+    }
+
+    let mut last_a = 0;
+    let mut last_b = 0;
+
+    for (line, idx_a, idx_b) in &anchors_indexed {
+        let sub_a = &content_a[last_a..*idx_a];
+        let sub_b = &content_b[last_b..*idx_b];
+        println!("Sub-bloco: A={:?}, B={:?}", sub_a, sub_b);
+
+        println!("Âncora: {}", line);
+
+        last_a = idx_a + 1;
+        last_b = idx_b + 1;
+    }
 
     println!("Anchors (candidatas): {:?}", anchors);
     println!("Positions in B: {:?}", positions_b);
@@ -89,6 +110,7 @@ fn lis_indices(seq: &[usize]) -> Vec<usize> {
     }
 
     let mut lis: Vec<usize> = Vec::new();
+    
     if let Some(&last_index) = tails_indices.last() {
         let mut k = Some(last_index);
         while let Some(idx) = k {
