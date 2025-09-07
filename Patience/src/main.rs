@@ -48,25 +48,7 @@ fn main() {
         let sub_a = &content_lines_a[last_a..*idx_a];
         let sub_b = &content_lines_b[last_b..*idx_b];
 
-        if sub_a.is_empty() && sub_b.is_empty() {
-            continue;
-        }
-
-        if !sub_a.is_empty() && sub_b.is_empty() {
-            for removed_line in sub_a {
-                diff.push(format!("-{}", removed_line))
-            }
-        }
-
-        if sub_a.is_empty() && !sub_b.is_empty() {
-            for new_line in sub_b {
-                diff.push(format!("+{}", new_line))
-            }
-        }
-
-        if !sub_a.is_empty() && !sub_b.is_empty() {
-            // aplicar diff recursivo?
-        }
+        diff.extend(compare_hunks(&sub_a, &sub_b));
 
         println!("Sub-bloco: A={:?}, B={:?}", sub_a, sub_b);
 
@@ -75,6 +57,11 @@ fn main() {
         last_a = idx_a + 1;
         last_b = idx_b + 1;
     }
+
+    let sub_a = &content_lines_a[anchors_indexed.last().unwrap().1 + 1..];
+    let sub_b = &content_lines_b[anchors_indexed.last().unwrap().2 + 1..];
+
+    diff.extend(compare_hunks(&sub_a, &sub_b));
 
     if !diff.is_empty() {
         let mut patch_file = File::create("patch.txt")
@@ -155,4 +142,30 @@ fn get_lis_indices(seq: &[usize]) -> Vec<usize> {
     }
 
     return lis;
+}
+
+fn compare_hunks(hunk_a: &[&str], hunk_b: &[&str]) -> Vec<String> {
+    let mut diff: Vec<String> = Vec::new();
+
+    if hunk_a.is_empty() && hunk_b.is_empty() {
+        return Vec::new();
+    }
+
+    if !hunk_a.is_empty() && hunk_b.is_empty() {
+        for removed_line in hunk_a {
+            diff.push(format!("-{}", removed_line))
+        }
+    }
+
+    if hunk_a.is_empty() && !hunk_b.is_empty() {
+        for new_line in hunk_b {
+            diff.push(format!("+{}", new_line))
+        }
+    }
+
+    if !hunk_a.is_empty() && !hunk_b.is_empty() {
+        // aplicar diff recursivo?
+    }
+
+    return diff;
 }
