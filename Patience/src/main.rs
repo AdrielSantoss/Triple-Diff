@@ -1,4 +1,4 @@
-use std::{collections::{HashMap, HashSet}, fs};
+use std::{collections::HashMap, fs};
 
 fn main() {
     let file_a = "src/fileA.txt";
@@ -28,46 +28,21 @@ fn main() {
         }
     }
 
-    let mut anchorsFinal: Vec<&str> = Vec::new();
-    let mut lastIndex: i32 = -1;
+    let lis_idx = lis_indices(&positions_b);
 
-    for (position_a, line_a) in content_lines_a.iter().enumerate() {
-        let mut anchorPos: usize = 0;
+    let anchors_final: Vec<&str> = lis_idx.iter().map(|&i| anchors[i]).collect();
 
-        if !anchors.contains(line_a) {
-            continue;
-        }
-        else {
-            anchorPos = anchors.iter().position(|x| x == line_a).unwrap();
-        }
-
-        let position_b = positions_b[anchorPos];
-        
-        if lastIndex == -1 {
-            if position_b > position_a {
-                continue;
-            }
-            else {
-                anchorsFinal.push(line_a);
-                lastIndex = position_a as i32;
-                continue;
-            }   
-        }
-
-        let lastIndexUsized: usize = lastIndex as usize;
-
-        if position_b > lastIndexUsized && position_b >= position_a {
-            anchorsFinal.push(line_a);
-            lastIndex = position_a as i32;
-        }
-    }
+    println!("Anchors (candidatas): {:?}", anchors);
+    println!("Positions in B: {:?}", positions_b);
+    println!("LIS indices: {:?}", lis_idx);
+    println!("Anchors final: {:?}", anchors_final);
 }
 
 fn get_unique_lines<'a>(content_lines: &'a [&'a str]) -> HashMap<&'a str, usize> {
     let mut freq: HashMap<&'a str, usize> = HashMap::new();
     let mut result: HashMap<&'a str, usize> = HashMap::new();
 
-    for (i, &line) in content_lines.iter().enumerate() {    
+    for (i, &line) in content_lines.iter().enumerate() {
         let count = freq.entry(line).or_insert(0);
         *count += 1;
 
@@ -78,5 +53,50 @@ fn get_unique_lines<'a>(content_lines: &'a [&'a str]) -> HashMap<&'a str, usize>
         }
     }
 
-    return result;
+    result
+}
+
+fn lis_indices(seq: &[usize]) -> Vec<usize> {
+    let n = seq.len();
+    if n == 0 {
+        return Vec::new();
+    }
+
+    let mut tails_vals: Vec<usize> = Vec::new();
+    let mut tails_indices: Vec<usize> = Vec::new();
+    let mut predecessors: Vec<Option<usize>> = vec![None; n];
+
+    for (i, &x) in seq.iter().enumerate() {
+        let pos = match tails_vals.binary_search(&x) {
+            Ok(p) => p,
+            Err(p) => p,
+        };
+
+        if pos == tails_vals.len() {
+            tails_vals.push(x);
+            tails_indices.push(i);
+        } else {
+            tails_vals[pos] = x;
+            tails_indices[pos] = i;
+        }
+
+        if pos > 0 {
+            predecessors[i] = Some(tails_indices[pos - 1]);
+        }
+        else {
+            predecessors[i] = None;
+        }
+    }
+
+    let mut lis: Vec<usize> = Vec::new();
+    if let Some(&last_index) = tails_indices.last() {
+        let mut k = Some(last_index);
+        while let Some(idx) = k {
+            lis.push(idx);
+            k = predecessors[idx];
+        }
+        lis.reverse();
+    }
+
+    return lis;
 }
