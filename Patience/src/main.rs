@@ -1,5 +1,8 @@
-use std::{collections::HashMap, fs::{self, File}};
-use std::io::Write;
+use std::{
+    collections::HashMap,
+    fs::{self, File},
+    io::Write,
+};
 
 fn main() {
     let file_a = "src/fileA.txt";
@@ -21,27 +24,25 @@ fn main() {
             .expect("Ocorreu um erro ao gerar o arquivo patch.");
 
         for line in &diffs {
-            writeln!(patch_file, "{}", line)
-                .expect(&format!("Ocorreu um erro ao registrar a linha: {}", line));
+            writeln!(patch_file, "{line}")
+                .unwrap_or_else(|_| panic!("Ocorreu um erro ao registrar a linha: {line}"));
         }
     }
 
-    println!("Diffs: {:?}", diffs);
+    println!("Diffs: {diffs:?}");
 }
 
 fn patience_diff<'a>(content_lines_a: &'a [&'a str], content_lines_b: &'a [&'a str]) -> Vec<String> {
-    let unique_lines_a = get_unique_lines(&content_lines_a);
-    let unique_lines_b = get_unique_lines(&content_lines_b);
+    let unique_lines_a = get_unique_lines(content_lines_a);
+    let unique_lines_b = get_unique_lines(content_lines_b);
 
-    let mut anchors: Vec<&str> = Vec::new();
-    let mut positions_b: Vec<usize> = Vec::new();
+    let mut anchors = Vec::with_capacity(content_lines_a.len());
+    let mut positions_b = Vec::with_capacity(content_lines_a.len());
 
     for &line in content_lines_a.iter() {
-        if let Some(&pos_b) = unique_lines_b.get(line) {
-            if unique_lines_a.contains_key(line) {
-                anchors.push(line);
-                positions_b.push(pos_b);
-            }
+        if let (Some(&idx_a), Some(&idx_b)) = (unique_lines_a.get(line), unique_lines_b.get(line)) {
+            anchors.push((line, idx_a, idx_b));
+            positions_b.push(idx_b);
         }
     }
 
@@ -50,22 +51,15 @@ fn patience_diff<'a>(content_lines_a: &'a [&'a str], content_lines_b: &'a [&'a s
     }
 
     let lis_idx = get_lis_indices(&positions_b);
-    let anchors_final: Vec<&str> = lis_idx.iter().map(|&i| anchors[i]).collect();
+    let anchors_final: Vec<_> = lis_idx.iter().map(|&i| anchors[i]).collect();
 
-    let mut anchors_indexed: Vec<(&str, usize, usize)> = Vec::new();
-    for &line in &anchors_final {
-        if let (Some(&idx_a), Some(&idx_b)) = (unique_lines_a.get(line), unique_lines_b.get(line)) {
-            anchors_indexed.push((line, idx_a, idx_b));
-        }
-    }
-
-    let mut diff: Vec<String> = Vec::new();
+    let mut diff = Vec::with_capacity(content_lines_a.len() + content_lines_b.len());
     let mut last_a = 0;
     let mut last_b = 0;
 
-    for (_, idx_a, idx_b) in &anchors_indexed {
-        let sub_a = &content_lines_a[last_a..*idx_a];
-        let sub_b = &content_lines_b[last_b..*idx_b];
+    for &(_, idx_a, idx_b) in &anchors_final {
+        let sub_a = &content_lines_a[last_a..idx_a];
+        let sub_b = &content_lines_b[last_b..idx_b];
 
         diff.extend(patience_diff(sub_a, sub_b));
 
@@ -76,19 +70,19 @@ fn patience_diff<'a>(content_lines_a: &'a [&'a str], content_lines_b: &'a [&'a s
     let sub_a = &content_lines_a[last_a..];
     let sub_b = &content_lines_b[last_b..];
 
-    for removed_line in sub_a {
-        diff.push(format!("-{}", removed_line));
+    for &removed_line in sub_a {
+        diff.push(format!("-{removed_line}"));
     }
-    for added_line in sub_b {
-        diff.push(format!("+{}", added_line));
+    for &added_line in sub_b {
+        diff.push(format!("+{added_line}"));
     }
 
     return diff;
 }
 
 fn get_unique_lines<'a>(content_lines: &'a [&'a str]) -> HashMap<&'a str, usize> {
-    let mut freq: HashMap<&'a str, usize> = HashMap::new();
-    let mut result: HashMap<&'a str, usize> = HashMap::new();
+    let mut freq = HashMap::with_capacity(content_lines.len());
+    let mut result = HashMap::with_capacity(content_lines.len());
 
     for (i, &line) in content_lines.iter().enumerate() {
         let count = freq.entry(line).or_insert(0);
@@ -105,18 +99,16 @@ fn get_unique_lines<'a>(content_lines: &'a [&'a str]) -> HashMap<&'a str, usize>
 }
 
 fn get_lis_indices(seq: &[usize]) -> Vec<usize> {
-    let n = seq.len();
-    if n == 0 { return Vec::new(); }
+    if seq.is_empty() {
+        return Vec::new();
+    }
 
-    let mut tails_vals: Vec<usize> = Vec::new();
-    let mut tails_indices: Vec<usize> = Vec::new();
-    let mut predecessors: Vec<Option<usize>> = vec![None; n];
+    let mut tails_vals = Vec::with_capacity(seq.len());
+    let mut tails_indices = Vec::with_capacity(seq.len());
+    let mut predecessors = vec![None; seq.len()];
 
     for (i, &x) in seq.iter().enumerate() {
-        let pos = match tails_vals.binary_search(&x) {
-            Ok(p) => p,
-            Err(p) => p,
-        };
+        let pos = tails_vals.binary_search(&x).unwrap_or_else(|p| p);
 
         if pos == tails_vals.len() {
             tails_vals.push(x);
@@ -131,7 +123,7 @@ fn get_lis_indices(seq: &[usize]) -> Vec<usize> {
         }
     }
 
-    let mut lis: Vec<usize> = Vec::new();
+    let mut lis = Vec::new();
     if let Some(&last_index) = tails_indices.last() {
         let mut k = Some(last_index);
         while let Some(idx) = k {
@@ -145,35 +137,30 @@ fn get_lis_indices(seq: &[usize]) -> Vec<usize> {
 }
 
 fn compare_hunks(hunk_a: &[&str], hunk_b: &[&str]) -> Vec<String> {
-    let mut diff: Vec<String> = Vec::new();
+    let mut diff = Vec::with_capacity(hunk_a.len() + hunk_b.len());
 
     if !hunk_a.is_empty() && hunk_b.is_empty() {
-        for removed_line in hunk_a {
-            diff.push(format!("-{}", removed_line));
+        for &removed_line in hunk_a {
+            diff.push(format!("-{removed_line}"));
         }
-    }
-
-    if hunk_a.is_empty() && !hunk_b.is_empty() {
-        for added_line in hunk_b {
-            diff.push(format!("+{}", added_line));
+    } else if hunk_a.is_empty() && !hunk_b.is_empty() {
+        for &added_line in hunk_b {
+            diff.push(format!("+{added_line}"));
         }
-    }
-
-    if !hunk_a.is_empty() && !hunk_b.is_empty() {
+    } else if !hunk_a.is_empty() && !hunk_b.is_empty() {
         for (a, b) in hunk_a.iter().zip(hunk_b.iter()) {
             if a != b {
-                diff.push(format!("-{}", a));
-                diff.push(format!("+{}", b));
+                diff.push(format!("-{a}"));
+                diff.push(format!("+{b}"));
             }
         }
         if hunk_a.len() > hunk_b.len() {
-            for extra in &hunk_a[hunk_b.len()..] {
-                diff.push(format!("-{}", extra));
+            for &extra in &hunk_a[hunk_b.len()..] {
+                diff.push(format!("-{extra}"));
             }
-        }
-        if hunk_b.len() > hunk_a.len() {
-            for extra in &hunk_b[hunk_a.len()..] {
-                diff.push(format!("+{}", extra));
+        } else if hunk_b.len() > hunk_a.len() {
+            for &extra in &hunk_b[hunk_a.len()..] {
+                diff.push(format!("+{extra}"));
             }
         }
     }
