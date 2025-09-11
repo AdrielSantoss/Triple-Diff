@@ -19,37 +19,42 @@ fn main() {
 }
 
 fn mayers_diff(content_a: &[&str], content_b: &[&str]) {
-    let vec = remove_comum_prefix(content_a, content_b);
+    let vec = remove_comum_prefix_and_sufix(content_a, content_b);
 
     println!("new content a: {:?}", vec.0);
     println!("new content b: {:?}", vec.1);
 }
 
-fn remove_comum_prefix(content_a: &[&str], content_b: &[&str]) -> (Vec<String>, Vec<String>) { 
-    let mut new_content_a: Vec<String> = Vec::with_capacity(content_a.len());
-    let mut new_content_b: Vec<String> = Vec::with_capacity(content_b.len());
+fn remove_comum_prefix_and_sufix<'a>(content_a: &'a [&'a str], content_b: &'a [&'a str]) -> (&'a [&'a str], &'a [&'a str]) { 
+    let mut last_prefix_position: usize = 0;
+    let mut first_sufix_position: usize = 0;
 
     for (index, element_a) in content_a.iter().enumerate() {
-        if index >= content_b.len() {
-            new_content_a.push(element_a.to_string());
-            continue;
-        }
-
         let element_b = &content_b[index];
 
+        if element_a != element_b {
+            break;
+        }
+
         if element_a == element_b {
+            last_prefix_position = index;
             continue;
         }
-
-        new_content_a.push(element_a.to_string());
-        new_content_b.push(element_b.to_string());
     }
+    
+    for index in (0..content_a.len()).rev() {
+        let element_b = &content_b[index];
+        let element_a = &content_a[index];
 
-    if content_b.len() > content_a.len() {
-        for element_b in &content_b[content_a.len()..] {
-            new_content_b.push(element_b.to_string());
+        if element_a != element_b {
+            break;
+        }
+
+        if element_a == element_b {
+            first_sufix_position = index;
+            continue;
         }
     }
 
-    return (new_content_a, new_content_b);
+    return (&content_a[last_prefix_position + 1..first_sufix_position], &content_b[last_prefix_position + 1..first_sufix_position]);
 }
