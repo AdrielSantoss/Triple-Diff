@@ -1,6 +1,11 @@
-use std::{
-    fs
-};
+use std::fs::{self, File};
+use std::io::Write;
+
+enum DiffOp<'a> {
+    Match(&'a str),
+    Insert(&'a str),
+    Delete(&'a str),
+}
 
 fn main() {
     let file_a = "src/fileA.txt";
@@ -88,7 +93,6 @@ fn myers_diff(content_a: &[&str], content_b: &[&str]) {
         }
 
         if (x as usize) >= n && (y as usize) >= m {
-            println!("O tamanho da SES é: {}", d);
             trace.push(v.clone()); 
             break;
         }
@@ -98,6 +102,7 @@ fn myers_diff(content_a: &[&str], content_b: &[&str]) {
 
     let mut x = n as isize;
     let mut y = m as isize;
+    let mut edits: Vec<DiffOp> = Vec::new();
 
     for (d, v) in trace.iter().enumerate().rev() {
         let k = x - y;
@@ -116,15 +121,39 @@ fn myers_diff(content_a: &[&str], content_b: &[&str]) {
         let prev_y = prev_x - prev_k;
 
         while x > prev_x && y > prev_y {
+            edits.push(DiffOp::Match(content_a[(x-1) as usize]));
+
             x -= 1;
             y -= 1;
         }
 
         if d > 0 {
-            if x == prev_x {                
+            if y > 0 && x == prev_x {
+                edits.push(DiffOp::Insert(content_b[(y-1) as usize]));
                 y -= 1;
-            } else {
+            } else if x > 0 {
+                edits.push(DiffOp::Delete(content_a[(x-1) as usize]));
                 x -= 1;
+            }
+        }
+    }
+
+    write_patch_file(&edits, "patch.diff");
+}
+
+fn write_patch_file(edits: &[DiffOp], filename: &str) {
+    let mut file = File::create(filename).expect("Não foi possível criar o arquivo de patch");
+
+    for edit in edits.iter().rev() {
+        match edit {
+            DiffOp::Match(line) => {
+                writeln!(file, " {}", line).unwrap();
+            }
+            DiffOp::Insert(line) => {
+                writeln!(file, "+{}", line).unwrap();
+            }
+            DiffOp::Delete(line) => {
+                writeln!(file, "-{}", line).unwrap();
             }
         }
     }
