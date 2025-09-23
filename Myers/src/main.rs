@@ -1,6 +1,5 @@
 use std::{
-    cmp::max,
-    fs,
+    fs
 };
 
 fn main() {
