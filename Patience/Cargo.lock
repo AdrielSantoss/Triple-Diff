@@ -5,3 +5,10 @@ version = 4
 [[package]]
 name = "Patience"
 version = "0.1.0"
+dependencies = [
+ "myers",
+]
+
+[[package]]
+name = "myers"
+version = "0.1.0"

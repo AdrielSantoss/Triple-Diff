@@ -4,6 +4,8 @@ use std::{
     io::Write,
 };
 
+use myers::myers_diff;
+
 fn main() {
     let file_a = "src/fileA.txt";
     let file_b = "src/fileB.txt";
@@ -46,8 +48,9 @@ fn patience_diff<'a>(content_lines_a: &'a [&'a str], content_lines_b: &'a [&'a s
         }
     }
 
-    if anchors.is_empty() {
-        return compare_hunks(content_lines_a, content_lines_b);
+    if anchors.is_empty() && content_lines_a.len() >= 1 && content_lines_b.len() >= 1 {
+        myers_diff(content_lines_a, content_lines_b);
+        return Vec::new();
     }
 
     let lis_idx = get_lis_indices(&positions_b);
@@ -134,36 +137,4 @@ fn get_lis_indices(seq: &[usize]) -> Vec<usize> {
     }
 
     return lis;
-}
-
-fn compare_hunks(hunk_a: &[&str], hunk_b: &[&str]) -> Vec<String> {
-    let mut diff = Vec::with_capacity(hunk_a.len() + hunk_b.len());
-
-    if !hunk_a.is_empty() && hunk_b.is_empty() {
-        for &removed_line in hunk_a {
-            diff.push(format!("-{removed_line}"));
-        }
-    } else if hunk_a.is_empty() && !hunk_b.is_empty() {
-        for &added_line in hunk_b {
-            diff.push(format!("+{added_line}"));
-        }
-    } else if !hunk_a.is_empty() && !hunk_b.is_empty() {
-        for (a, b) in hunk_a.iter().zip(hunk_b.iter()) {
-            if a != b {
-                diff.push(format!("-{a}"));
-                diff.push(format!("+{b}"));
-            }
-        }
-        if hunk_a.len() > hunk_b.len() {
-            for &extra in &hunk_a[hunk_b.len()..] {
-                diff.push(format!("-{extra}"));
-            }
-        } else if hunk_b.len() > hunk_a.len() {
-            for &extra in &hunk_b[hunk_a.len()..] {
-                diff.push(format!("+{extra}"));
-            }
-        }
-    }
-
-    return diff;
 }
