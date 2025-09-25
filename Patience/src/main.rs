@@ -1,10 +1,9 @@
 use std::{
     collections::HashMap,
-    fs::{self, File},
-    io::Write,
+    fs::{self}
 };
 
-use myers::myers_diff;
+use myers::{myers_diff, write_patch_file, DiffOp};
 
 fn main() {
     let file_a = "src/fileA.txt";
@@ -19,22 +18,17 @@ fn main() {
     let content_lines_a: Vec<&str> = content_a.lines().collect();
     let content_lines_b: Vec<&str> = content_b.lines().collect();
 
-    let diffs = patience_diff(&content_lines_a, &content_lines_b);
+    let diffs = patience_diff(&content_lines_a, &content_lines_b, true);
 
     if !diffs.is_empty() {
-        let mut patch_file = File::create("patch.txt")
-            .expect("Ocorreu um erro ao gerar o arquivo patch.");
-
-        for line in &diffs {
-            writeln!(patch_file, "{line}")
-                .unwrap_or_else(|_| panic!("Ocorreu um erro ao registrar a linha: {line}"));
-        }
+        write_patch_file(&diffs, "patch.diff");
+        return;
     }
 
-    println!("Diffs: {diffs:?}");
+    println!("Nenhum diff gerado.");
 }
 
-fn patience_diff<'a>(content_lines_a: &'a [&'a str], content_lines_b: &'a [&'a str]) -> Vec<String> {
+fn patience_diff<'a>(content_lines_a: &'a [&'a str], content_lines_b: &'a [&'a str], bord: bool) -> Vec<DiffOp<'a>> {
     let unique_lines_a = get_unique_lines(content_lines_a);
     let unique_lines_b = get_unique_lines(content_lines_b);
 
@@ -49,14 +43,13 @@ fn patience_diff<'a>(content_lines_a: &'a [&'a str], content_lines_b: &'a [&'a s
     }
 
     if anchors.is_empty() && content_lines_a.len() >= 1 && content_lines_b.len() >= 1 {
-        myers_diff(content_lines_a, content_lines_b);
-        return Vec::new();
+        return myers_diff(content_lines_a, content_lines_b);
     }
 
     let lis_idx = get_lis_indices(&positions_b);
     let anchors_final: Vec<_> = lis_idx.iter().map(|&i| anchors[i]).collect();
 
-    let mut diff = Vec::with_capacity(content_lines_a.len() + content_lines_b.len());
+    let mut diff = Vec::<DiffOp<'a>>::with_capacity(content_lines_a.len() + content_lines_b.len());
     let mut last_a = 0;
     let mut last_b = 0;
 
@@ -64,20 +57,22 @@ fn patience_diff<'a>(content_lines_a: &'a [&'a str], content_lines_b: &'a [&'a s
         let sub_a = &content_lines_a[last_a..idx_a];
         let sub_b = &content_lines_b[last_b..idx_b];
 
-        diff.extend(patience_diff(sub_a, sub_b));
+        diff.extend(patience_diff(sub_a, sub_b, false));
 
         last_a = idx_a + 1;
         last_b = idx_b + 1;
     }
 
-    let sub_a = &content_lines_a[last_a..];
-    let sub_b = &content_lines_b[last_b..];
+    if bord {
+        let sub_a = &content_lines_a[last_a..];
+        let sub_b = &content_lines_b[last_b..]; 
 
-    for &removed_line in sub_a {
-        diff.push(format!("-{removed_line}"));
-    }
-    for &added_line in sub_b {
-        diff.push(format!("+{added_line}"));
+        for &removed_line in sub_a {
+            diff.push(DiffOp::Delete(removed_line));
+        }
+        for &added_line in sub_b {
+            diff.push(DiffOp::Insert(added_line));
+        }
     }
 
     return diff;
