@@ -1,12 +1,11 @@
 use std::fs::File;
 use std::io::Write;
 
-enum DiffOp<'a> {
+pub enum DiffOp<'a> {
     Match(&'a str),
     Insert(&'a str),
     Delete(&'a str),
 }
-
 
 pub fn remove_comum_prefix_and_suffix<'a>(
     content_a: &'a [&'a str], 
@@ -32,7 +31,7 @@ pub fn remove_comum_prefix_and_suffix<'a>(
     (&content_a[prefix_len..len_a-suffix_len], &content_b[prefix_len..len_b-suffix_len])
 }
 
-pub fn myers_diff(content_a: &[&str], content_b: &[&str]) {
+pub fn myers_diff<'a>(content_a: &'a [&'a str], content_b: &'a [&'a str]) -> Vec<DiffOp<'a>> {
     let n = content_a.len();
     let m = content_b.len();
 
@@ -40,7 +39,7 @@ pub fn myers_diff(content_a: &[&str], content_b: &[&str]) {
     let offset = max;
 
     let mut v: Vec<isize> = vec![0; 2 * max + 1];
-    let mut trace: Vec<Vec<isize>> = Vec::new();
+    let mut trace: Vec<(isize, Vec<isize>)> = Vec::new();
 
     for d in 0..=max as isize {
         let mut y = 0;
@@ -67,30 +66,29 @@ pub fn myers_diff(content_a: &[&str], content_b: &[&str]) {
 
             if (x as usize) >= n && (y as usize) >= m {
                 println!("O tamanho da SES é: {}", d);
-                trace.push(v.clone()); 
+                trace.push((d, v.clone()));
                 break;
             }
         }
 
         if (x as usize) >= n && (y as usize) >= m {
-            trace.push(v.clone()); 
+            trace.push((d, v.clone())); 
             break;
         }
 
-        trace.push(v.clone());
+        trace.push((d, v.clone()));
     }
 
+    let mut edits: Vec<DiffOp> = Vec::new();
     let mut x = n as isize;
     let mut y = m as isize;
-    let mut edits: Vec<DiffOp> = Vec::new();
 
-    for (d, v) in trace.iter().enumerate().rev() {
+    for (d, v) in trace.iter().rev() {
+        let d = *d as isize;
         let k = x - y;
 
-        let d_isize = d as isize;
-
-        let prev_k = if k == -d_isize
-            || (k != d_isize && v[(k - 1 + offset as isize) as usize] < v[(k + 1 + offset as isize) as usize])
+        let prev_k = if k == -d
+            || (k != d && v[(k - 1 + offset as isize) as usize] < v[(k + 1 + offset as isize) as usize])
         {
             k + 1
         } else {
@@ -101,30 +99,33 @@ pub fn myers_diff(content_a: &[&str], content_b: &[&str]) {
         let prev_y = prev_x - prev_k;
 
         while x > prev_x && y > prev_y {
-            edits.push(DiffOp::Match(content_a[(x-1) as usize]));
-
+            edits.insert(0, DiffOp::Match(content_a[(x - 1) as usize]));
             x -= 1;
             y -= 1;
         }
 
-        if d > 0 {
-            if y > 0 && x == prev_x {
-                edits.push(DiffOp::Insert(content_b[(y-1) as usize]));
-                y -= 1;
-            } else if x > 0 {
-                edits.push(DiffOp::Delete(content_a[(x-1) as usize]));
-                x -= 1;
-            }
+        if x == prev_x && y > prev_y {
+            edits.insert(0, DiffOp::Insert(content_b[(y - 1) as usize]));
+            y -= 1;
+        } else if x > prev_x && y == prev_y {
+            edits.insert(0, DiffOp::Delete(content_a[(x - 1) as usize]));
+            x -= 1;
+        }
+
+        if x == 0 && y == 0 {
+            break;
         }
     }
 
-    write_patch_file(&edits, "patch.diff");
+   // write_patch_file(&edits, "patch.diff");
+    
+    edits
 }
 
-fn write_patch_file(edits: &[DiffOp], filename: &str) {
+pub fn write_patch_file(edits: &[DiffOp], filename: &str) {
     let mut file = File::create(filename).expect("Não foi possível criar o arquivo de patch");
 
-    for edit in edits.iter().rev() {
+    for edit in edits.iter() {
         match edit {
             DiffOp::Match(line) => {
                 writeln!(file, " {}", line).unwrap();
