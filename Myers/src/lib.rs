@@ -33,12 +33,38 @@ pub fn remove_comum_prefix_and_suffix<'a>(
 }
 
 pub fn myers_diff<'a>(content_a: &'a [&'a str], content_b: &'a [&'a str]) -> Vec<DiffOp<'a>> {
-    let n = content_a.len();
-    let m = content_b.len();
+    let (prefix, mid_a, mid_b, suffix_a) = remove_comum_prefix_and_suffix(content_a, content_b);
 
+    let n = mid_a.len();
+    let m = mid_b.len();
     let max = (n + m) as usize;
     let offset = max;
 
+    let trace = forward(max, offset, n, m, mid_a, mid_b);
+    let mut edits: Vec<DiffOp<'a>> = Vec::new();
+    
+    for line in prefix {
+        edits.push(DiffOp::Match(line));
+    }
+
+    edits.extend(backtracking(trace, offset, n, m, mid_a, mid_b));
+
+    for line in suffix_a {
+        edits.push(DiffOp::Match(line));
+    }
+    
+    edits
+}
+
+// Short Edit Script (SES)
+fn forward(
+    max: usize,
+    offset: usize,
+    n: usize,
+    m: usize,
+    content_a: &[&str],
+    content_b: &[&str]
+) -> Vec<(isize, Vec<isize>)> {
     let mut v: Vec<isize> = vec![0; 2 * max + 1];
     let mut trace: Vec<(isize, Vec<isize>)> = Vec::new();
 
@@ -70,7 +96,19 @@ pub fn myers_diff<'a>(content_a: &'a [&'a str], content_b: &'a [&'a str]) -> Vec
         }
     }
 
-    let mut edits: Vec<DiffOp> = Vec::new();
+    trace
+}
+
+// Traceback
+fn backtracking<'a>(
+    trace: Vec<(isize, Vec<isize>)>,
+    offset: usize,
+    n: usize,
+    m: usize,
+    content_a: &'a [&'a str],
+    content_b: &'a [&'a str],
+) -> Vec<DiffOp<'a>> {
+    let mut edits: Vec<DiffOp<'a>> = Vec::new();
     let mut x = n as isize;
     let mut y = m as isize;
 
@@ -91,7 +129,6 @@ pub fn myers_diff<'a>(content_a: &'a [&'a str], content_b: &'a [&'a str]) -> Vec
 
         while x > prev_x && y > prev_y {
             edits.insert(0, DiffOp::Match(content_a[(x - 1) as usize]));   
-            
             x -= 1;
             y -= 1;
         }
@@ -100,17 +137,16 @@ pub fn myers_diff<'a>(content_a: &'a [&'a str], content_b: &'a [&'a str]) -> Vec
             if y > 0 {
                 edits.insert(0, DiffOp::Insert(content_b[(y - 1) as usize]));
             }
-            
             y -= 1;
-        } else if x > prev_x && y == prev_y {
+        }
+        else if x > prev_x && y == prev_y {
             if x > 0 {
                 edits.insert(0, DiffOp::Delete(content_a[(x - 1) as usize]));
             }
-            
             x -= 1;
         }
     }
-    
+
     edits
 }
 
