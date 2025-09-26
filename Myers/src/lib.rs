@@ -8,27 +8,28 @@ pub enum DiffOp<'a> {
 }
 
 pub fn remove_comum_prefix_and_suffix<'a>(
-    content_a: &'a [&'a str], 
-    content_b: &'a [&'a str]
-) -> (&'a [&'a str], &'a [&'a str]) {
-    let mut prefix_len = 0;
-    let mut suffix_len = 0;
-    let len_a = content_a.len();
-    let len_b = content_b.len();
+    a: &'a [&'a str],
+    b: &'a [&'a str],
+) -> (&'a [&'a str], &'a [&'a str], &'a [&'a str], &'a [&'a str]) {
+    let mut start = 0;
+    let mut end_a = a.len();
+    let mut end_b = b.len();
 
-    for (i, &a) in content_a.iter().enumerate() {
-        if i >= len_b || a != content_b[i] {
-            break;
-        }
-        prefix_len += 1;
+    while start < end_a && start < end_b && a[start] == b[start] {
+        start += 1;
     }
 
-    while suffix_len < (len_a - prefix_len) && suffix_len < (len_b - prefix_len) &&
-          content_a[len_a - 1 - suffix_len] == content_b[len_b - 1 - suffix_len] {
-        suffix_len += 1;
+    while end_a > start && end_b > start && a[end_a - 1] == b[end_b - 1] {
+        end_a -= 1;
+        end_b -= 1;
     }
 
-    (&content_a[prefix_len..len_a-suffix_len], &content_b[prefix_len..len_b-suffix_len])
+    let prefix = &a[..start];
+    let mid_a = &a[start..end_a];
+    let mid_b = &b[start..end_b];
+    let suffix = &a[end_a..];
+
+    return (prefix, mid_a, mid_b, suffix)
 }
 
 pub fn myers_diff<'a>(content_a: &'a [&'a str], content_b: &'a [&'a str]) -> Vec<DiffOp<'a>> {
@@ -40,11 +41,9 @@ pub fn myers_diff<'a>(content_a: &'a [&'a str], content_b: &'a [&'a str]) -> Vec
 
     let mut v: Vec<isize> = vec![0; 2 * max + 1];
     let mut trace: Vec<(isize, Vec<isize>)> = Vec::new();
-    let mut final_d = 0;
 
     for d in 0..=max as isize {
         trace.push((d, v.clone()));
-        final_d = d;
 
         for k in (-d..=d).step_by(2) {
             let k_idx = (k + offset as isize) as usize;
@@ -66,7 +65,6 @@ pub fn myers_diff<'a>(content_a: &'a [&'a str], content_b: &'a [&'a str]) -> Vec
             v[k_idx] = x;
 
             if (x as usize) >= n && (y as usize) >= m {
-                println!("O tamanho da SES é: {}", d);
                 break;
             }
         }
@@ -99,17 +97,19 @@ pub fn myers_diff<'a>(content_a: &'a [&'a str], content_b: &'a [&'a str]) -> Vec
         }
 
         if x == prev_x && y > prev_y {
-            edits.insert(0, DiffOp::Insert(content_b[(y - 1) as usize]));
+            if y > 0 {
+                edits.insert(0, DiffOp::Insert(content_b[(y - 1) as usize]));
+            }
             
             y -= 1;
         } else if x > prev_x && y == prev_y {
-            edits.insert(0, DiffOp::Delete(content_a[(x - 1) as usize]));
+            if x > 0 {
+                edits.insert(0, DiffOp::Delete(content_a[(x - 1) as usize]));
+            }
             
             x -= 1;
         }
     }
-
-    write_patch_file(&edits, "patch.diff");
     
     edits
 }
@@ -131,4 +131,3 @@ pub fn write_patch_file(edits: &[DiffOp], filename: &str) {
         }
     }
 }
-
