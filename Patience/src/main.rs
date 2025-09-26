@@ -18,7 +18,7 @@ fn main() {
     let content_lines_a: Vec<&str> = content_a.lines().collect();
     let content_lines_b: Vec<&str> = content_b.lines().collect();
 
-    let diffs = patience_diff(&content_lines_a, &content_lines_b, true);
+    let diffs = patience_diff(&content_lines_a, &content_lines_b);
 
     if !diffs.is_empty() {
         write_patch_file(&diffs, "patch.diff");
@@ -28,7 +28,7 @@ fn main() {
     println!("Nenhum diff gerado.");
 }
 
-fn patience_diff<'a>(content_lines_a: &'a [&'a str], content_lines_b: &'a [&'a str], bord: bool) -> Vec<DiffOp<'a>> {
+fn patience_diff<'a>(content_lines_a: &'a [&'a str], content_lines_b: &'a [&'a str]) -> Vec<DiffOp<'a>> {
     let unique_lines_a = get_unique_lines(content_lines_a);
     let unique_lines_b = get_unique_lines(content_lines_b);
 
@@ -57,22 +57,20 @@ fn patience_diff<'a>(content_lines_a: &'a [&'a str], content_lines_b: &'a [&'a s
         let sub_a = &content_lines_a[last_a..idx_a];
         let sub_b = &content_lines_b[last_b..idx_b];
 
-        diff.extend(patience_diff(sub_a, sub_b, false));
+        diff.extend(patience_diff(sub_a, sub_b));
 
         last_a = idx_a + 1;
         last_b = idx_b + 1;
     }
 
-    if bord {
-        let sub_a = &content_lines_a[last_a..];
-        let sub_b = &content_lines_b[last_b..]; 
+    let sub_a = &content_lines_a[last_a..];
+    let sub_b = &content_lines_b[last_b..]; 
 
-        for &removed_line in sub_a {
-            diff.push(DiffOp::Delete(removed_line));
-        }
-        for &added_line in sub_b {
-            diff.push(DiffOp::Insert(added_line));
-        }
+    for &removed_line in sub_a {
+        diff.push(DiffOp::Delete(removed_line));
+    }
+    for &added_line in sub_b {
+        diff.push(DiffOp::Insert(added_line));
     }
 
     return diff;
