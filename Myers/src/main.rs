@@ -17,9 +17,6 @@ fn main() {
 
     let (mid_a, mid_b) = remove_comum_prefix_and_suffix(&content_lines_a, &content_lines_b);
 
-    println!("Meio de A: {:?}", mid_a);
-    println!("Meio de B: {:?}", mid_b);
-
     myers_diff(mid_a, mid_b);
 }
 

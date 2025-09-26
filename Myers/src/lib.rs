@@ -40,22 +40,23 @@ pub fn myers_diff<'a>(content_a: &'a [&'a str], content_b: &'a [&'a str]) -> Vec
 
     let mut v: Vec<isize> = vec![0; 2 * max + 1];
     let mut trace: Vec<(isize, Vec<isize>)> = Vec::new();
+    let mut final_d = 0;
 
     for d in 0..=max as isize {
-        let mut y = 0;
-        let mut x = 0;
+        trace.push((d, v.clone()));
+        final_d = d;
 
         for k in (-d..=d).step_by(2) {
             let k_idx = (k + offset as isize) as usize;
 
-            x = if k == -d || (k != d && v[(k-1+offset as isize) as usize] < v[(k+1+offset as isize) as usize])
+            let mut x = if k == -d || (k != d && v[(k-1+offset as isize) as usize] < v[(k+1+offset as isize) as usize])
             {
                 v[(k+1+offset as isize) as usize]
             } else {
                 v[(k-1+offset as isize) as usize] + 1
             };
 
-            y = x - k;
+            let mut y = x - k;
 
             while (x as usize) < n && (y as usize) < m && content_a[x as usize] == content_b[y as usize] {
                 x += 1;
@@ -66,17 +67,9 @@ pub fn myers_diff<'a>(content_a: &'a [&'a str], content_b: &'a [&'a str]) -> Vec
 
             if (x as usize) >= n && (y as usize) >= m {
                 println!("O tamanho da SES é: {}", d);
-                trace.push((d, v.clone()));
                 break;
             }
         }
-
-        if (x as usize) >= n && (y as usize) >= m {
-            trace.push((d, v.clone())); 
-            break;
-        }
-
-        trace.push((d, v.clone()));
     }
 
     let mut edits: Vec<DiffOp> = Vec::new();
@@ -99,25 +92,24 @@ pub fn myers_diff<'a>(content_a: &'a [&'a str], content_b: &'a [&'a str]) -> Vec
         let prev_y = prev_x - prev_k;
 
         while x > prev_x && y > prev_y {
-            edits.insert(0, DiffOp::Match(content_a[(x - 1) as usize]));
+            edits.insert(0, DiffOp::Match(content_a[(x - 1) as usize]));   
+            
             x -= 1;
             y -= 1;
         }
 
         if x == prev_x && y > prev_y {
             edits.insert(0, DiffOp::Insert(content_b[(y - 1) as usize]));
+            
             y -= 1;
         } else if x > prev_x && y == prev_y {
             edits.insert(0, DiffOp::Delete(content_a[(x - 1) as usize]));
+            
             x -= 1;
-        }
-
-        if x == 0 && y == 0 {
-            break;
         }
     }
 
-   // write_patch_file(&edits, "patch.diff");
+    write_patch_file(&edits, "patch.diff");
     
     edits
 }
