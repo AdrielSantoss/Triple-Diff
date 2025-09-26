@@ -15,10 +15,10 @@ fn main() {
     let content_b = fs::read_to_string(file_b)
         .expect("Ocorreu um erro ao ler o FileB");
 
-    let content_lines_a: Vec<&str> = content_a.lines().collect();
-    let content_lines_b: Vec<&str> = content_b.lines().collect();
+    let lines_a: Vec<&str> = content_a.lines().collect();
+    let lines_b: Vec<&str> = content_b.lines().collect();
 
-    let diffs = patience_diff(&content_lines_a, &content_lines_b);
+    let diffs = patience_diff(&lines_a, &lines_b);
 
     if !diffs.is_empty() {
         write_patch_file(&diffs, "patch.diff");
@@ -28,52 +28,56 @@ fn main() {
     println!("Nenhum diff gerado.");
 }
 
-fn patience_diff<'a>(content_lines_a: &'a [&'a str], content_lines_b: &'a [&'a str]) -> Vec<DiffOp<'a>> {
-    let unique_lines_a = get_unique_lines(content_lines_a);
-    let unique_lines_b = get_unique_lines(content_lines_b);
+fn patience_diff<'a>(content_a: &'a [&'a str], content_b: &'a [&'a str]) -> Vec<DiffOp<'a>> {
+    let anchors = find_unique_anchors(content_a, content_b);
 
-    let mut anchors = Vec::with_capacity(content_lines_a.len());
-    let mut positions_b = Vec::with_capacity(content_lines_a.len());
-
-    for &line in content_lines_a.iter() {
-        if let (Some(&idx_a), Some(&idx_b)) = (unique_lines_a.get(line), unique_lines_b.get(line)) {
-            anchors.push((line, idx_a, idx_b));
-            positions_b.push(idx_b);
-        }
+    if anchors.is_empty() {
+        return myers_diff(content_a, content_b);
     }
 
-    if anchors.is_empty() && content_lines_a.len() >= 1 && content_lines_b.len() >= 1 {
-        return myers_diff(content_lines_a, content_lines_b);
-    }
-
+    let positions_b: Vec<usize> = anchors.iter().map(|(_, _, idx_b)| *idx_b).collect();
     let lis_idx = get_lis_indices(&positions_b);
     let anchors_final: Vec<_> = lis_idx.iter().map(|&i| anchors[i]).collect();
 
-    let mut diff = Vec::<DiffOp<'a>>::with_capacity(content_lines_a.len() + content_lines_b.len());
+    let mut diff = Vec::new();
     let mut last_a = 0;
     let mut last_b = 0;
 
-    for &(_, idx_a, idx_b) in &anchors_final {
-        let sub_a = &content_lines_a[last_a..idx_a];
-        let sub_b = &content_lines_b[last_b..idx_b];
+    for &(anchor_line, idx_a, idx_b) in &anchors_final {
+        let sub_a = &content_a[last_a..idx_a];
+        let sub_b = &content_b[last_b..idx_b];
 
-        diff.extend(patience_diff(sub_a, sub_b));
+        if !sub_a.is_empty() || !sub_b.is_empty() {
+            diff.extend(myers_diff(sub_a, sub_b));
+        }
+
+        diff.push(DiffOp::Match(anchor_line));
 
         last_a = idx_a + 1;
         last_b = idx_b + 1;
     }
 
-    let sub_a = &content_lines_a[last_a..];
-    let sub_b = &content_lines_b[last_b..]; 
-
-    for &removed_line in sub_a {
-        diff.push(DiffOp::Delete(removed_line));
-    }
-    for &added_line in sub_b {
-        diff.push(DiffOp::Insert(added_line));
+    let sub_a = &content_a[last_a..];
+    let sub_b = &content_b[last_b..];
+    if !sub_a.is_empty() || !sub_b.is_empty() {
+        diff.extend(myers_diff(sub_a, sub_b));
     }
 
-    return diff;
+    diff
+}
+
+fn find_unique_anchors<'a>(content_a: &'a [&'a str], content_b: &'a [&'a str]) -> Vec<(&'a str, usize, usize)> {
+    let unique_a = get_unique_lines(content_a);
+    let unique_b = get_unique_lines(content_b);
+
+    let mut anchors = Vec::new();
+    for &line in content_a.iter() {
+        if let (Some(&idx_a), Some(&idx_b)) = (unique_a.get(line), unique_b.get(line)) {
+            anchors.push((line, idx_a, idx_b));
+        }
+    }
+
+    anchors
 }
 
 fn get_unique_lines<'a>(content_lines: &'a [&'a str]) -> HashMap<&'a str, usize> {
@@ -91,7 +95,7 @@ fn get_unique_lines<'a>(content_lines: &'a [&'a str]) -> HashMap<&'a str, usize>
         }
     }
 
-    return result;
+    result
 }
 
 fn get_lis_indices(seq: &[usize]) -> Vec<usize> {
@@ -129,5 +133,5 @@ fn get_lis_indices(seq: &[usize]) -> Vec<usize> {
         lis.reverse();
     }
 
-    return lis;
+    lis
 }
