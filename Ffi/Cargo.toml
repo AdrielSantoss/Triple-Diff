@@ -1,0 +1,12 @@
+[package]
+name = "Ffi"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "diff_tool"
+crate-type = ["cdylib"]
+
+[dependencies]
+myers = { path = "../Myers" }
+utils = { path = "../Utils" }
