@@ -1,19 +1,25 @@
 use std::{
-    collections::HashMap,
-    fs::{self}
+    collections::HashMap, env, fs::{self}
 };
 
 use myers::{myers_diff, write_patch_file, DiffOp};
 
 fn main() {
-    let file_a = "src/fileA.txt";
-    let file_b = "src/fileB.txt";
+    let args: Vec<String> = env::args().collect();
+
+    if args.len() != 3 {
+        eprintln!("Usage: {} <filePathA> <filePathB>", args[0]);
+        std::process::exit(1);
+    }
+
+    let file_a = &args[1];
+    let file_b = &args[2];
 
     let content_a = fs::read_to_string(file_a)
-        .expect("Ocorreu um erro ao ler o FileA");
+        .expect(&format!("Error reading file {}", file_a));
 
     let content_b = fs::read_to_string(file_b)
-        .expect("Ocorreu um erro ao ler o FileB");
+        .expect(&format!("Error reading file {}", file_b));
 
     let lines_a: Vec<&str> = content_a.lines().collect();
     let lines_b: Vec<&str> = content_b.lines().collect();
@@ -22,10 +28,11 @@ fn main() {
 
     if !diffs.is_empty() {
         write_patch_file(&diffs, "patch.diff");
+        println!("Diff written to patch.diff");
         return;
     }
 
-    println!("Nenhum diff gerado.");
+    println!("No differences found");
 }
 
 fn patience_diff<'a>(content_a: &'a [&'a str], content_b: &'a [&'a str]) -> Vec<DiffOp<'a>> {
