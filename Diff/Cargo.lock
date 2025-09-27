@@ -3,7 +3,7 @@
 version = 4
 
 [[package]]
-name = "diff"
+name = "diff_tool"
 version = "0.1.0"
 dependencies = [
  "myers",
