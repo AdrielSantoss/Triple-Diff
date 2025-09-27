@@ -76,3 +76,6 @@ b
 c
 -b
 ```
+# Requirements
+- Rust version 1.8+
+- Windows: PowerShell 7+ for proper terminal color support
