@@ -24,6 +24,10 @@ fn main() {
     let lines_a: Vec<&str> = content_a.lines().collect();
     let lines_b: Vec<&str> = content_b.lines().collect();
 
+    if lines_a.is_empty() && lines_a.is_empty() {
+        println!("No differences found");
+    }
+
     let edits: Vec<DiffOp> = if use_patience {
         patience_diff(&lines_a, &lines_b)
     } else {

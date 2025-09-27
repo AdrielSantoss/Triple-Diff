@@ -4,8 +4,7 @@
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Build](https://img.shields.io/badge/build-passing-brightgreen)
 
-A powerful command-line tool for text file comparison, implementing the **Myers** and **Patience** diff algorithms in Rust. Ideal for developers who need a fast and accurate diff tool for source code, logs, or any text files.
-
+A command-line tool for comparing text files, implementing the Myers and Patience comparison algorithms in Rust.
 ---
 
 ## Features
