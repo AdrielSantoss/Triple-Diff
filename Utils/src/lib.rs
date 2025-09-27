@@ -3,6 +3,7 @@ use std::io::Write;
 use std::{
     env, fs::{self}
 };
+use colored::*;
 
 pub enum DiffOp<'a> {
     Match(&'a str),
@@ -35,12 +36,15 @@ pub fn write_patch_file(edits: &[DiffOp], filename: &str) {
     for edit in edits.iter() {
         match edit {
             DiffOp::Match(line) => {
+                println!("{}", line);
                 writeln!(file, " {}", line).unwrap();
             }
             DiffOp::Insert(line) => {
+                println!("{}", format!("+{}", line).green());
                 writeln!(file, "+{}", line).unwrap();
             }
             DiffOp::Delete(line) => {
+                println!("{}", format!("-{}", line).red());
                 writeln!(file, "-{}", line).unwrap();
             }
         }
