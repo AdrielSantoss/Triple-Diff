@@ -1,26 +1,12 @@
 use std::{
-    collections::HashMap, env, fs::{self}
+    collections::HashMap
 };
 
-use myers::{myers_diff, write_patch_file, DiffOp};
+use myers::{myers_diff };
+use utils::{write_patch_file, get_content_files, DiffOp};
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
-
-    if args.len() != 3 {
-        eprintln!("Usage: {} <filePathA> <filePathB>", args[0]);
-        std::process::exit(1);
-    }
-
-    let file_a = &args[1];
-    let file_b = &args[2];
-
-    let content_a = fs::read_to_string(file_a)
-        .expect(&format!("Error reading file {}", file_a));
-
-    let content_b = fs::read_to_string(file_b)
-        .expect(&format!("Error reading file {}", file_b));
-
+    let (content_a, content_b) = get_content_files();
     let lines_a: Vec<&str> = content_a.lines().collect();
     let lines_b: Vec<&str> = content_b.lines().collect();
 

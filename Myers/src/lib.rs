@@ -1,11 +1,4 @@
-use std::fs::File;
-use std::io::Write;
-
-pub enum DiffOp<'a> {
-    Match(&'a str),
-    Insert(&'a str),
-    Delete(&'a str),
-}
+use utils::{DiffOp};
 
 pub fn remove_comum_prefix_and_suffix<'a>(
     a: &'a [&'a str],
@@ -148,22 +141,4 @@ fn backtracking<'a>(
     }
 
     edits
-}
-
-pub fn write_patch_file(edits: &[DiffOp], filename: &str) {
-    let mut file = File::create(filename).expect("Não foi possível criar o arquivo de patch");
-
-    for edit in edits.iter() {
-        match edit {
-            DiffOp::Match(line) => {
-                writeln!(file, " {}", line).unwrap();
-            }
-            DiffOp::Insert(line) => {
-                writeln!(file, "+{}", line).unwrap();
-            }
-            DiffOp::Delete(line) => {
-                writeln!(file, "-{}", line).unwrap();
-            }
-        }
-    }
 }
