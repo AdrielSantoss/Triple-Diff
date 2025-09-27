@@ -1,8 +1,9 @@
 [package]
-name = "patience"
+name = "diff"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
 myers = { path = "../Myers" }
+patience = { path = "../Patience" }
 utils = { path = "../Utils" }

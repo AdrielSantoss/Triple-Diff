@@ -1,27 +1,9 @@
-use std::{
-    collections::HashMap
-};
+use std::collections::HashMap;
 
-use myers::{myers_diff };
-use utils::{write_patch_file, get_content_files, DiffOp};
+use myers::myers_diff;
+use utils::DiffOp;
 
-fn main() {
-    let (content_a, content_b) = get_content_files();
-    let lines_a: Vec<&str> = content_a.lines().collect();
-    let lines_b: Vec<&str> = content_b.lines().collect();
-
-    let diffs = patience_diff(&lines_a, &lines_b);
-
-    if !diffs.is_empty() {
-        write_patch_file(&diffs, "patch.diff");
-        println!("Diff written to patch.diff");
-        return;
-    }
-
-    println!("No differences found");
-}
-
-fn patience_diff<'a>(content_a: &'a [&'a str], content_b: &'a [&'a str]) -> Vec<DiffOp<'a>> {
+pub fn patience_diff<'a>(content_a: &'a [&'a str], content_b: &'a [&'a str]) -> Vec<DiffOp<'a>> {
     let anchors = find_unique_anchors(content_a, content_b);
 
     if anchors.is_empty() {

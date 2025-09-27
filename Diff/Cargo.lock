@@ -3,6 +3,15 @@
 version = 4
 
 [[package]]
+name = "diff"
+version = "0.1.0"
+dependencies = [
+ "myers",
+ "patience",
+ "utils",
+]
+
+[[package]]
 name = "myers"
 version = "0.1.0"
 dependencies = [
