@@ -12,7 +12,6 @@ pub extern "C" fn myers_diff_c(
     len_b: usize,
     out_len: *mut usize,
 ) -> *mut *mut c_char {
-    
     assert!(!content_a.is_null());
     assert!(!content_b.is_null());
     assert!(!out_len.is_null());
@@ -20,23 +19,28 @@ pub extern "C" fn myers_diff_c(
     let slice_a = unsafe { std::slice::from_raw_parts(content_a, len_a) };
     let slice_b = unsafe { std::slice::from_raw_parts(content_b, len_b) };
 
-    let rust_lines_a: Vec<&str> = slice_a.iter()
+    let rust_lines_a: Vec<&str> = slice_a
+        .iter()
         .map(|&s| unsafe { CStr::from_ptr(s).to_str().unwrap() })
         .collect();
-    let rust_lines_b: Vec<&str> = slice_b.iter()
+
+    let rust_lines_b: Vec<&str> = slice_b
+        .iter()
         .map(|&s| unsafe { CStr::from_ptr(s).to_str().unwrap() })
         .collect();
 
     let edits = myers_diff(&rust_lines_a, &rust_lines_b);
 
-    let mut cstrings: Vec<CString> = edits.iter().map(|d| {
-        match d {
-            DiffOp::Match(s) | DiffOp::Insert(s) | DiffOp::Delete(s) => CString::new(*s).unwrap()
-        }
-    }).collect();
-
-    let c_ptrs: Vec<*mut c_char> = cstrings.iter_mut()
-        .map(|c| c.as_ptr() as *mut c_char)
+    let c_ptrs: Vec<*mut c_char> = edits
+        .iter()
+        .map(|d| {
+            let prefixed = match d {
+                DiffOp::Match(s) => format!(" {}", s),
+                DiffOp::Insert(s) => format!("+{}", s),
+                DiffOp::Delete(s) => format!("-{}", s),
+            };
+            CString::new(prefixed).unwrap().into_raw()
+        })
         .collect();
 
     let len = c_ptrs.len();
@@ -48,8 +52,18 @@ pub extern "C" fn myers_diff_c(
 
 #[unsafe(no_mangle)]
 pub extern "C" fn free_diff(result: *mut *mut c_char, len: usize) {
-    if result.is_null() { return; }
+    if result.is_null() {
+        return;
+    }
     unsafe {
-        let _ = Box::from_raw(std::slice::from_raw_parts_mut(result, len));
+        let slice = std::slice::from_raw_parts_mut(result, len);
+
+        for ptr in slice.iter_mut() {
+            if !ptr.is_null() {
+                let _ = CString::from_raw(*ptr);
+            }
+        }
+
+        let _ = Box::from_raw(slice);
     }
 }
