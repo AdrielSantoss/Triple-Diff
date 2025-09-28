@@ -9,4 +9,5 @@ crate-type = ["cdylib"]
 
 [dependencies]
 myers = { path = "../Myers" }
+patience = { path = "../Patience" }
 utils = { path = "../Utils" }

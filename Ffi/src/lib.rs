@@ -1,37 +1,62 @@
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 
-use myers::myers_diff;
+use myers::myers_diff as myers_diff_rs;
+use patience::patience_diff as patience_diff_rs;
 use utils::DiffOp;
 
+enum Algorithm {
+    Myers,
+    Patience,
+}
+
 #[unsafe(no_mangle)]
-pub extern "C" fn myers_diff_c(
-    content_a: *const *const c_char,
-    len_a: usize,
-    content_b: *const *const c_char,
-    len_b: usize,
-    out_len: *mut usize,
+pub unsafe extern "C" fn myers_diff(
+    content_a: *mut *mut c_char,
+    len_a: i32,
+    content_b: *mut *mut c_char,
+    len_b: i32,
+    out_len: *mut i32,
 ) -> *mut *mut c_char {
-    assert!(!content_a.is_null());
-    assert!(!content_b.is_null());
-    assert!(!out_len.is_null());
+    unsafe { run_diff_ffi(content_a, len_a, content_b, len_b, Algorithm::Myers, out_len) }
+}
 
-    let slice_a = unsafe { std::slice::from_raw_parts(content_a, len_a) };
-    let slice_b = unsafe { std::slice::from_raw_parts(content_b, len_b) };
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn patience_diff(
+    content_a: *mut *mut c_char,
+    len_a: i32,
+    content_b: *mut *mut c_char,
+    len_b: i32,
+    out_len: *mut i32,
+) -> *mut *mut c_char {
+    unsafe { run_diff_ffi(content_a, len_a, content_b, len_b, Algorithm::Patience, out_len) }
+}
 
-    let rust_lines_a: Vec<&str> = slice_a
-        .iter()
-        .map(|&s| unsafe { CStr::from_ptr(s).to_str().unwrap() })
+unsafe fn run_diff_ffi(
+    content_a: *mut *mut c_char,
+    len_a: i32,
+    content_b: *mut *mut c_char,
+    len_b: i32,
+    algo: Algorithm,
+    out_len: *mut i32,
+) -> *mut *mut c_char {
+    // converte ponteiros para slices Rust
+    let slice_a: Vec<&str> = (0..len_a)
+        .map(|i| unsafe { CStr::from_ptr(*content_a.add(i as usize)).to_str().unwrap() })
         .collect();
 
-    let rust_lines_b: Vec<&str> = slice_b
-        .iter()
-        .map(|&s| unsafe { CStr::from_ptr(s).to_str().unwrap() })
+    let slice_b: Vec<&str> = (0..len_b)
+        .map(|i| unsafe { CStr::from_ptr(*content_b.add(i as usize)).to_str().unwrap() })
         .collect();
 
-    let edits = myers_diff(&rust_lines_a, &rust_lines_b);
+    // calcula diff
+    let diff: Vec<DiffOp> = match algo {
+        Algorithm::Myers => myers_diff_rs(&slice_a, &slice_b),
+        Algorithm::Patience => patience_diff_rs(&slice_a, &slice_b),
+    };
 
-    let c_ptrs: Vec<*mut c_char> = edits
+    // transforma em ponteiros C
+    let c_ptrs: Vec<*mut c_char> = diff
         .iter()
         .map(|d| {
             let prefixed = match d {
@@ -43,27 +68,29 @@ pub extern "C" fn myers_diff_c(
         })
         .collect();
 
-    let len = c_ptrs.len();
-    unsafe { *out_len = len; }
+    // escreve o tamanho para C#
+    if !out_len.is_null() {
+        unsafe { *out_len = c_ptrs.len() as i32 };
+    }
 
-    let boxed_ptr = c_ptrs.into_boxed_slice();
-    Box::into_raw(boxed_ptr) as *mut *mut c_char
+    // transfere posse do array de ponteiros
+    let boxed = c_ptrs.into_boxed_slice();
+    Box::into_raw(boxed) as *mut *mut c_char
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn free_diff(result: *mut *mut c_char, len: usize) {
-    if result.is_null() {
+pub unsafe extern "C" fn free_diff(ptr: *mut *mut c_char, len: i32) {
+    if ptr.is_null() {
         return;
     }
-    unsafe {
-        let slice = std::slice::from_raw_parts_mut(result, len);
 
-        for ptr in slice.iter_mut() {
-            if !ptr.is_null() {
-                let _ = CString::from_raw(*ptr);
-            }
+    let slice = unsafe { std::slice::from_raw_parts_mut(ptr, len as usize) };
+
+    for &mut p in slice.iter_mut() {
+        if !p.is_null() {
+            drop(unsafe { CString::from_raw(p) });
         }
-
-        let _ = Box::from_raw(slice);
     }
+
+    let _ = unsafe { Box::from_raw(slice) };
 }
