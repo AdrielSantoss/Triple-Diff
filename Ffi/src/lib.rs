@@ -40,7 +40,6 @@ unsafe fn run_diff_ffi(
     algo: Algorithm,
     out_len: *mut i32,
 ) -> *mut *mut c_char {
-    // converte ponteiros para slices Rust
     let slice_a: Vec<&str> = (0..len_a)
         .map(|i| unsafe { CStr::from_ptr(*content_a.add(i as usize)).to_str().unwrap() })
         .collect();
@@ -49,13 +48,11 @@ unsafe fn run_diff_ffi(
         .map(|i| unsafe { CStr::from_ptr(*content_b.add(i as usize)).to_str().unwrap() })
         .collect();
 
-    // calcula diff
     let diff: Vec<DiffOp> = match algo {
         Algorithm::Myers => myers_diff_rs(&slice_a, &slice_b),
         Algorithm::Patience => patience_diff_rs(&slice_a, &slice_b),
     };
 
-    // transforma em ponteiros C
     let c_ptrs: Vec<*mut c_char> = diff
         .iter()
         .map(|d| {
@@ -68,12 +65,10 @@ unsafe fn run_diff_ffi(
         })
         .collect();
 
-    // escreve o tamanho para C#
     if !out_len.is_null() {
         unsafe { *out_len = c_ptrs.len() as i32 };
     }
 
-    // transfere posse do array de ponteiros
     let boxed = c_ptrs.into_boxed_slice();
     Box::into_raw(boxed) as *mut *mut c_char
 }

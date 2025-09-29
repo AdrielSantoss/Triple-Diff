@@ -13,6 +13,7 @@ A command-line tool for comparing text files, implementing the Myers and Patienc
 - **Patience Diff**: Human-friendly diff algorithm, great for files with repeated lines.
 - **Cross-project Utilities**: Shared utilities in `/utils` for file reading, patch writing, and more.
 - **Command-line Tool**: Simple CLI with options to choose the diff algorithm.
+- **FFI Support**: Call the diff algorithms from other languages.
 
 ---
 
@@ -21,6 +22,7 @@ A command-line tool for comparing text files, implementing the Myers and Patienc
 - `/diff` → Main executable (`diff_tool`)  
 - `/myers` → Implementation of Myers diff algorithm  
 - `/patience` → Implementation of Patience diff algorithm  
+- `/ffi` → Rust library exposing `myers_diff`, `patience_diff`, and `free_diff` for FFI  
 - `/utils` → Shared utilities used by both algorithms  
 
 ---
